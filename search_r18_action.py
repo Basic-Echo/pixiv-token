@@ -9,19 +9,21 @@ from pixivpy3 import AppPixivAPI
 CLIENT_ID = "MOBrBDS8blbauoSck0ZfDbtuzpyT"
 CLIENT_SECRET = "lsACyCD94FhDUtGTXi3QzcFE2uU1hqtDaKeqrdwj"
 HASH_SECRET = "28c1fdd170a5204386cb1313c7077b34f83e4aaf4aa829ce78c231e05b0bae2c"
-REFRESH_TOKEN = "lL7bEXcWLqKHy1vNi7pl_W2D_XfMbgAPhJ5eDHSarFU"
+PIXIV_USER = "shinkaisanka@gmail.com"
+PIXIV_PASS = "10760819zjq"
 
 
 def oauth_login():
-    """Manual OAuth via refresh_token (bypasses older pixivpy3 login bug)"""
+    """Manual OAuth via password grant"""
     local_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
     client_hash = hashlib.md5((local_time + HASH_SECRET).encode()).hexdigest()
 
     data = urllib.parse.urlencode({
         "client_id": CLIENT_ID,
         "client_secret": CLIENT_SECRET,
-        "grant_type": "refresh_token",
-        "refresh_token": REFRESH_TOKEN,
+        "grant_type": "password",
+        "username": PIXIV_USER,
+        "password": PIXIV_PASS,
         "get_secure_url": 1,
     }).encode()
 
@@ -37,13 +39,18 @@ def oauth_login():
         data=data, headers=headers, method="POST",
     )
 
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        result = json.loads(resp.read().decode())
-        access_token = result.get("access_token")
-        refresh_token = result.get("refresh_token", REFRESH_TOKEN)
-        user_id = result.get("user", {}).get("id", 0)
-        print(f"  [OK] Logged in (user ID: {user_id})")
-        return access_token, refresh_token, user_id
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            result = json.loads(resp.read().decode())
+            access_token = result.get("access_token")
+            refresh_token = result.get("refresh_token", "")
+            user_id = result.get("user", {}).get("id", 0)
+            print(f"  [OK] Logged in (user ID: {user_id})")
+            return access_token, refresh_token, user_id
+    except urllib.error.HTTPError as e:
+        body = e.read().decode(errors='replace')
+        print(f"  [FAIL] HTTP {e.code}: {body[:300]}")
+        raise
 
 
 def main():
