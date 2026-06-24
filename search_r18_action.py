@@ -1,19 +1,12 @@
 """
 Pixiv R18 Eyjafjalla Search (GitHub Actions)
-Uses pixivpy3 auth() method with refresh_token
+Uses pixivpy3 login with username/password
 """
 import json, os
 from pixivpy3 import AppPixivAPI
 
-REFRESH_TOKEN = "lL7bEXcWLqKHy1vNi7pl_W2D_XfMbgAPhJ5eDHSarFU"
-
-
-def oauth_login():
-    """OAuth via pixivpy3 auth() with refresh_token"""
-    api = AppPixivAPI()
-    token = api.auth(refresh_token=REFRESH_TOKEN)
-    print(f"  [OK] Logged in (user ID: {api.user_id})")
-    return api.access_token, api.refresh_token, api.user_id
+USERNAME = "shinkaisanka@gmail.com"
+PASSWORD = "10760819zjq"
 
 
 def main():
@@ -21,14 +14,11 @@ def main():
     print("  Pixiv R18 Eyjafjalla Search")
     print("=" * 70)
 
-    # Manual OAuth
     print("\n[*] Logging in...")
-    access_token, refresh_token, user_id = oauth_login()
-
-    # Setup pixivpy3 with our token
     api = AppPixivAPI()
-    api.set_auth(access_token, refresh_token)
-    api.user_id = user_id
+    api.login(USERNAME, PASSWORD)
+    print(f"  [OK] Logged in (user ID: {api.user_id})")
+    print(f"  Refresh token: {api.refresh_token[:20]}...")
 
     queries = [
         "\u30a8\u30a4\u30e4\u30d5\u30a3\u30e4\u30c8\u30e9 R-18",
