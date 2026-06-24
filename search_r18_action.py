@@ -1,24 +1,68 @@
 """
 Pixiv R18 Eyjafjalla Search (sync version for GitHub Actions)
-Uses pixivpy3 for sync OAuth + search
+Manual OAuth to support older pixivpy3 versions
 """
-import json, os
+import json, os, hashlib, urllib.request, urllib.parse
+from datetime import datetime
 from pixivpy3 import AppPixivAPI
 
+CLIENT_ID = "MOBrBDS8blbauoSck0ZfDbtuzpyT"
+CLIENT_SECRET = "lsACyCD94FhDUtGTXi3QzcFE2uU1hqtDaKeqrdwj"
+HASH_SECRET = "28c1fdd170a5204386cb1313c7077b34f83e4aaf4aa829ce78c231e05b0bae2c"
 REFRESH_TOKEN = "lL7bEXcWLqKHy1vNi7pl_W2D_XfMbgAPhJ5eDHSarFU"
+
+
+def oauth_login():
+    """Manual OAuth via refresh_token (bypasses older pixivpy3 login bug)"""
+    local_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
+    client_hash = hashlib.md5((local_time + HASH_SECRET).encode()).hexdigest()
+
+    data = urllib.parse.urlencode({
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "grant_type": "refresh_token",
+        "refresh_token": REFRESH_TOKEN,
+        "get_secure_url": 1,
+    }).encode()
+
+    headers = {
+        "User-Agent": "PixivAndroidApp/5.0.234 (Android 11; Pixel 5)",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "X-Client-Time": local_time,
+        "X-Client-Hash": client_hash,
+    }
+
+    req = urllib.request.Request(
+        "https://oauth.secure.pixiv.net/auth/token",
+        data=data, headers=headers, method="POST",
+    )
+
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        result = json.loads(resp.read().decode())
+        access_token = result.get("access_token")
+        refresh_token = result.get("refresh_token", REFRESH_TOKEN)
+        user_id = result.get("user", {}).get("id", 0)
+        print(f"  [OK] Logged in (user ID: {user_id})")
+        return access_token, refresh_token, user_id
+
 
 def main():
     print("=" * 70)
     print("  Pixiv R18 Eyjafjalla Search")
     print("=" * 70)
 
+    # Manual OAuth
+    print("\n[*] Logging in...")
+    access_token, refresh_token, user_id = oauth_login()
+
+    # Setup pixivpy3 with our token
     api = AppPixivAPI()
-    api.login(refresh_token=REFRESH_TOKEN)
-    print(f"  [OK] Logged in (user ID: {api.user_id})")
+    api.set_auth(access_token, refresh_token)
+    api.user_id = user_id
 
     queries = [
-        "エイヤフィヤトラ R-18",
-        "エイヤフィヤトラ",
+        "\u30a8\u30a4\u30e4\u30d5\u30a3\u30e4\u30c8\u30e9 R-18",
+        "\u30a8\u30a4\u30e4\u30d5\u30a3\u30e4\u30c8\u30e9",
     ]
 
     all_results = []
@@ -80,7 +124,7 @@ def main():
         json.dump(output, f, indent=2, ensure_ascii=False)
     print(f"\n  Saved: {output_path}")
 
-    # GitHub Actions summary
+    # GitHub Actions step summary
     step_summary = os.environ.get('GITHUB_STEP_SUMMARY')
     if step_summary:
         with open(step_summary, 'a') as f:
@@ -91,6 +135,7 @@ def main():
             for r in r18_list[:30]:
                 tag_str = ", ".join(r['tags'][:4])
                 f.write(f"| {r['pid']} | {r['bookmark']} | R18 | {r['title']} | {tag_str} |\n")
+
 
 if __name__ == "__main__":
     main()
