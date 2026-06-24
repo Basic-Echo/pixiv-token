@@ -1,56 +1,19 @@
 """
-Pixiv R18 Eyjafjalla Search (sync version for GitHub Actions)
-Manual OAuth to support older pixivpy3 versions
+Pixiv R18 Eyjafjalla Search (GitHub Actions)
+Uses pixivpy3 auth() method with refresh_token
 """
-import json, os, hashlib, urllib.request, urllib.parse
-from datetime import datetime
+import json, os
 from pixivpy3 import AppPixivAPI
 
-CLIENT_ID = "MOBrBDS8blbauoSck0ZfDbtuzpyT"
-CLIENT_SECRET = "lsACyCD94FhDUtGTXi3QzcFE2uU1hqtDaKeqrdwj"
-HASH_SECRET = "28c1fdd170a5204386cb1313c7077b34f83e4aaf4aa829ce78c231e05b0bae2c"
-PIXIV_USER = "shinkaisanka@gmail.com"
-PIXIV_PASS = "10760819zjq"
+REFRESH_TOKEN = "lL7bEXcWLqKHy1vNi7pl_W2D_XfMbgAPhJ5eDHSarFU"
 
 
 def oauth_login():
-    """Manual OAuth via password grant"""
-    local_time = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S+00:00")
-    client_hash = hashlib.md5((local_time + HASH_SECRET).encode()).hexdigest()
-
-    data = urllib.parse.urlencode({
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "grant_type": "password",
-        "username": PIXIV_USER,
-        "password": PIXIV_PASS,
-        "get_secure_url": 1,
-    }).encode()
-
-    headers = {
-        "User-Agent": "PixivAndroidApp/5.0.234 (Android 11; Pixel 5)",
-        "Content-Type": "application/x-www-form-urlencoded",
-        "X-Client-Time": local_time,
-        "X-Client-Hash": client_hash,
-    }
-
-    req = urllib.request.Request(
-        "https://oauth.secure.pixiv.net/auth/token",
-        data=data, headers=headers, method="POST",
-    )
-
-    try:
-        with urllib.request.urlopen(req, timeout=30) as resp:
-            result = json.loads(resp.read().decode())
-            access_token = result.get("access_token")
-            refresh_token = result.get("refresh_token", "")
-            user_id = result.get("user", {}).get("id", 0)
-            print(f"  [OK] Logged in (user ID: {user_id})")
-            return access_token, refresh_token, user_id
-    except urllib.error.HTTPError as e:
-        body = e.read().decode(errors='replace')
-        print(f"  [FAIL] HTTP {e.code}: {body[:300]}")
-        raise
+    """OAuth via pixivpy3 auth() with refresh_token"""
+    api = AppPixivAPI()
+    token = api.auth(refresh_token=REFRESH_TOKEN)
+    print(f"  [OK] Logged in (user ID: {api.user_id})")
+    return api.access_token, api.refresh_token, api.user_id
 
 
 def main():
