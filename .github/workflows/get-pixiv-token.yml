@@ -1,80 +1,24 @@
-name: Get Pixiv Refresh Token
-
-on:
-  workflow_dispatch:
-
-jobs:
-  get-token:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Get Pixiv OAuth token
-        run: |
-          pip install pixivpy3 -q
-          python -c "
-import hashlib, json, urllib.request, urllib.parse
-from datetime import datetime
-
-CLIENT_ID = 'MOBrBDS8blbauoSck0ZfDbtuzpyT'
-CLIENT_SECRET = 'lsACyCD94FhDUtGTXi3QzcFE2uU1hqtDaKeqrdwj'
-HASH_SECRET = '28c1fdd170a5204386cb1313c7077b34f83e4aaf4aa829ce78c231e05b0bae2c'
-USERNAME = 'shinkaisanka@gmail.com'
-PASSWORD = '10760819zjq'
-
-local_time = datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S+00:00')
-client_hash = hashlib.md5((local_time + HASH_SECRET).encode()).hexdigest()
-
-# Try pixivpy3 first
-try:
-    from pixivpy3 import AppPixivAPI
-    api = AppPixivAPI()
-    api.login(USERNAME, PASSWORD)
-    print('pixivpy3 OK')
-    print('refresh_token:', api.refresh_token)
-    with open('pixiv_token.txt', 'w') as f:
-        f.write(api.refresh_token)
-    exit(0)
-except Exception as e:
-    print(f'pixivpy3 fail: {e}')
-
-# Fallback: direct OAuth request
-print('Direct OAuth...')
-data = urllib.parse.urlencode({
-    'client_id': CLIENT_ID, 'client_secret': CLIENT_SECRET,
-    'grant_type': 'password', 'username': USERNAME,
-    'password': PASSWORD, 'get_secure_url': 1,
-}).encode()
-
-headers = {
-    'User-Agent': 'PixivAndroidApp/5.0.234 (Android 11; Pixel 5)',
-    'X-Client-Time': local_time,
-    'X-Client-Hash': client_hash,
-}
-
-req = urllib.request.Request(
-    'https://oauth.secure.pixiv.net/auth/token',
-    data=data, headers=headers, method='POST')
-
-try:
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        result = json.loads(resp.read().decode())
-        print('Status:', resp.status)
-        print('refresh_token:', result.get('refresh_token', 'N/A'))
-        with open('pixiv_token.txt', 'w') as f:
-            f.write(result.get('refresh_token', ''))
-        with open('pixiv_response.json', 'w') as f:
-            json.dump(result, f, indent=2)
-        print('SUCCESS')
-except Exception as e:
-    print(f'Error: {e}')
-"
-
-      - name: Upload token artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pixiv-token
-          path: pixiv_token.txt
+	name: Get Pixiv Refresh Token
+2	
+3	on:
+4	  workflow_dispatch:
+5	
+6	jobs:
+7	  get-token:
+8	    runs-on: ubuntu-latest
+9	    steps:
+10	      - uses: actions/checkout@v4
+11	      - uses: actions/setup-python@v5
+12	        with:
+13	          python-version: '3.11'
+14	
+15	      - name: Get Pixiv OAuth token
+16	        run: |
+17	          pip install pixivpy3 -q 2>&1 | tail -1
+18	          python get_token.py
+19	
+20	      - name: Upload token artifact
+21	        uses: actions/upload-artifact@v4
+22	        with:
+23	          name: pixiv-token
+24	          path: pixiv_token.txt
